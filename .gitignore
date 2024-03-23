@@ -1,0 +1,6 @@
+cg_shifting_solver/target
+.vscode/
+.venv/
+*.db
+.env
+__pycache__/

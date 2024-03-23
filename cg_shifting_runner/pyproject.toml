@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "cg-shifting"
+version = "0.1.0"
+description = ""
+authors = ["Nicolas M. <mine.nicolas@gmail.com>"]
+readme = "README.md"
+packages = [{include = "cg_shifting"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+python-dotenv = "^1.0.1"
+requests = "^2.31.0"
+ipykernel = "^6.29.3"
+sqlalchemy = "^2.0.28"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
