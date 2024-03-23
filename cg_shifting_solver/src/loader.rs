@@ -1,6 +1,7 @@
 use std::io;
+use std::io::BufRead;
 
-use crate::entity::{game_state::GameState, tile::Tile};
+use crate::entity::game_state::GameState;
 
 macro_rules! parse_input {
     ($x:expr, $t:ident) => {
@@ -8,7 +9,7 @@ macro_rules! parse_input {
     };
 }
 
-pub fn read_input() -> GameState {
+pub fn read_input() -> GameState<'static> {
     let mut game_state = GameState::new();
 
     let mut input_line = String::new();
@@ -16,19 +17,14 @@ pub fn read_input() -> GameState {
     let inputs = input_line.split(' ').collect::<Vec<_>>();
     let _width = parse_input!(inputs[0], i32);
     let height = parse_input!(inputs[1], i32);
-    for i in 0..height as usize {
+    for _ in 0..height as usize {
         let mut inputs = String::new();
         io::stdin().read_line(&mut inputs).unwrap();
-        for (j, val) in inputs.split_whitespace().enumerate() {
-            let cell = parse_input!(val, i32);
-            if cell != 0 {
-                game_state.tiles.push(Tile {
-                    value: cell,
-                    row: i as u8,
-                    col: j as u8,
-                });
-            }
-        }
+        let row = inputs
+            .split_whitespace()
+            .map(|x| x.parse::<u16>().unwrap())
+            .collect::<Vec<u16>>();
+        game_state.board.push(row);
     }
 
     game_state

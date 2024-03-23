@@ -1,3 +1,4 @@
+from pathlib import Path
 import subprocess
 
 import requests
@@ -7,7 +8,7 @@ import os
 
 load_dotenv()
 
-program_execute = "python foo.py"
+program_execute = r"cg_shifting_solver\target\release\cg_shifting_solver.exe"
 cookie = os.environ.get("COOKIE_REMEMBERME")
 user_id = os.environ.get("USER_ID")
 
@@ -17,23 +18,34 @@ session.cookies.set("rememberMe", cookie, domain="codingame.com")
 
 def extract_current_puzzle() -> tuple[str, int]:
     level = get_first_unsolved()
-    with open("level.txt", "w") as f:
+    if level is None:
+        return None, None
+    
+    with open("../level.txt", "w") as f:
         f.write(level.level_input)
-    return (level.hash, level.level_number)
+    return (level.level_pass, level.level_number)
 
 
 def extract_current_solution() -> str:
-    with open("solution.txt", "r") as f:
+    with open("../solution.txt", "r") as f:
         solution = f.read()
     return solution
 
 
 def solve_level():
     level_pass, level_number = extract_current_puzzle()
-    completed_process = subprocess.run("solver.exe < level.txt > solution.txt", shell=True)
+
+    if level_pass is None:
+        print("No more levels to solve.")
+        return False, None, None
+    
+
+    cwd = Path.cwd().parent
+    completed_process = subprocess.run(f"{program_execute} < level.txt > solution.txt", shell=True, cwd=cwd)
     exit_code = completed_process.returncode
     if exit_code == 0:
         solution = extract_current_solution()
+
         set_solution(level_number, solution)
         print(f"Solution found for level {level_number} and saved to database.")
         return True, level_pass, solution
@@ -110,5 +122,5 @@ def setup_db():
 
 if __name__ == "__main__":
     # setup_db()
-    # main()
-    main_offline()
+    main()
+    # main_offline()
