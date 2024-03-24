@@ -1,4 +1,9 @@
+use std::hash::Hash;
+use std::hash::Hasher;
+
 use crate::entity::action::{Action, Direction, Operation};
+use fxhash::FxHashSet;
+use fxhash::FxHasher;
 
 pub struct GameState<'a> {
     pub board: Vec<Vec<u16>>,
@@ -6,6 +11,14 @@ pub struct GameState<'a> {
 
     pub all_directions: Vec<&'a Direction>,
     pub all_operations: Vec<&'a Operation>,
+
+    pub visited_states: FxHashSet<u64>,
+}
+
+impl<'a> Hash for GameState<'a> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.board.hash(state);
+    }
 }
 
 impl<'a> GameState<'a> {
@@ -20,7 +33,14 @@ impl<'a> GameState<'a> {
                 &Direction::Right,
             ],
             all_operations: vec![&Operation::Plus, &Operation::Minus],
+            visited_states: FxHashSet::default(),
         }
+    }
+
+    pub fn get_hash(&self) -> u64 {
+        let mut hasher = FxHasher::default();
+        self.hash(&mut hasher);
+        hasher.finish()
     }
 
     pub fn print(&self) {
@@ -33,6 +53,14 @@ impl<'a> GameState<'a> {
         if self.game_won() {
             return true;
         }
+
+        let hash = self.get_hash();
+        // eprintln!("Hash: {}", hash);
+        if self.visited_states.contains(&hash) {
+            // eprintln!("Already visited");
+            return false;
+        }
+        self.visited_states.insert(hash);
 
         for action in self.get_all_possible_actions().iter() {
             self.apply_action(action);
