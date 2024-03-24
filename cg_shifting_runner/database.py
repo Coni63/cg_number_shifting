@@ -45,9 +45,15 @@ def set_solution(level_number, solution):
         session.commit()
 
 
-def get_first_unsolved():
+def get_first_unsolved() -> Results:
     with Session() as session:
         level = session.query(Results).filter(Results.solved == False).first()
+        return level
+
+
+def get_level_by_id(level_id) -> Results:
+    with Session() as session:
+        level = session.query(Results).filter(Results.id == level_id).first()
         return level
 
 
