@@ -35,8 +35,8 @@ pub struct Action<'a> {
     pub col: usize,
     pub direction: &'a Direction,
     pub op: &'a Operation,
-    pub source_value: u16,
-    pub target_value: u16,
+    pub source_value: u8,
+    pub target_value: u8,
 }
 
 impl<'a> ToString for Action<'a> {

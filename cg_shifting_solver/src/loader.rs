@@ -22,8 +22,8 @@ pub fn read_input() -> GameState<'static> {
         io::stdin().read_line(&mut inputs).unwrap();
         let row = inputs
             .split_whitespace()
-            .map(|x| x.parse::<u16>().unwrap())
-            .collect::<Vec<u16>>();
+            .map(|x| x.parse::<u8>().unwrap())
+            .collect::<Vec<u8>>();
         game_state.board.push(row);
     }
 

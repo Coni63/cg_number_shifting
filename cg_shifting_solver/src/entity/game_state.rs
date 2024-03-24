@@ -6,7 +6,7 @@ use fxhash::FxHashSet;
 use fxhash::FxHasher;
 
 pub struct GameState<'a> {
-    pub board: Vec<Vec<u16>>,
+    pub board: Vec<Vec<u8>>,
     pub actions_taken: Vec<Action<'a>>,
 
     pub all_directions: Vec<&'a Direction>,
@@ -54,6 +54,11 @@ impl<'a> GameState<'a> {
             return true;
         }
 
+        if self.impossible_state() {
+            // eprintln!("Impossible state");
+            return false;
+        }
+
         let hash = self.get_hash();
         // eprintln!("Hash: {}", hash);
         if self.visited_states.contains(&hash) {
@@ -86,7 +91,7 @@ impl<'a> GameState<'a> {
         self.board[r2][c2] = match action.op {
             Operation::Plus => action.source_value + action.target_value,
             Operation::Minus => {
-                ((action.source_value as i16) - (action.target_value as i16)).unsigned_abs()
+                ((action.source_value as i8) - (action.target_value as i8)).unsigned_abs()
             }
         };
         self.actions_taken.push(action.clone());
@@ -110,6 +115,21 @@ impl<'a> GameState<'a> {
         self.board
             .iter()
             .all(|row| row.iter().all(|&cell| cell == 0))
+    }
+
+    fn impossible_state(&self) -> bool {
+        // if the highest value is above the sum of all other values it's impossible
+        let mut max_value = 0;
+        let mut sum = 0;
+        for row in &self.board {
+            for &cell in row {
+                if cell > max_value {
+                    max_value = cell;
+                }
+                sum += cell;
+            }
+        }
+        return max_value * 2 > sum;
     }
 
     fn get_all_possible_actions(&self) -> Vec<Action<'a>> {
