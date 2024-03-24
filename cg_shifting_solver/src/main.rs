@@ -1,20 +1,20 @@
 mod entity;
 mod loader;
+mod solver;
 
 use entity::game_state::GameState;
+use solver::Solution;
+use solver::Solver;
 
 fn main() {
     let mut game = loader::read_input();
 
-    // game.print();
+    let mut solver = solver::Solver::new(game);
 
-    let won = game.step();
+    let solution = solver.solve();
 
-    game.actions_taken.iter().for_each(|action| {
-        println!("{}", action.to_string());
-    });
+    eprintln!("Solver: {:?}", solver.init_score);
+    eprintln!("Solution: {:?}", solution.score);
 
-    // println!("7 4 L +");
-    // println!("3 0 D -");
-    // println!("6 4 L -");
+    loader::write_output(solution.actions);
 }

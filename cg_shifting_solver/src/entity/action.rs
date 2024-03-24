@@ -16,6 +16,17 @@ impl ToString for Direction {
     }
 }
 
+impl Clone for Direction {
+    fn clone(&self) -> Self {
+        match self {
+            Direction::Up => Direction::Up,
+            Direction::Down => Direction::Down,
+            Direction::Left => Direction::Left,
+            Direction::Right => Direction::Right,
+        }
+    }
+}
+
 pub enum Operation {
     Plus,
     Minus,
@@ -30,16 +41,23 @@ impl ToString for Operation {
     }
 }
 
-pub struct Action<'a> {
-    pub row: usize,
-    pub col: usize,
-    pub direction: &'a Direction,
-    pub op: &'a Operation,
-    pub source_value: u8,
-    pub target_value: u8,
+impl Clone for Operation {
+    fn clone(&self) -> Self {
+        match self {
+            Operation::Plus => Operation::Plus,
+            Operation::Minus => Operation::Minus,
+        }
+    }
 }
 
-impl<'a> ToString for Action<'a> {
+pub struct Action {
+    pub row: usize,
+    pub col: usize,
+    pub direction: Direction,
+    pub op: Operation,
+}
+
+impl ToString for Action {
     fn to_string(&self) -> String {
         format!(
             "{} {} {} {}",
@@ -51,15 +69,13 @@ impl<'a> ToString for Action<'a> {
     }
 }
 
-impl Clone for Action<'_> {
+impl Clone for Action {
     fn clone(&self) -> Self {
         Action {
             row: self.row,
             col: self.col,
-            direction: self.direction,
-            op: self.op,
-            source_value: self.source_value,
-            target_value: self.target_value,
+            direction: self.direction.clone(),
+            op: self.op.clone(),
         }
     }
 }
@@ -73,10 +89,8 @@ mod tests {
         let action = Action {
             row: 2,
             col: 3,
-            direction: &Direction::Up,
-            op: &Operation::Plus,
-            source_value: 5,
-            target_value: 10,
+            direction: Direction::Up,
+            op: Operation::Plus,
         };
         assert_eq!(action.to_string(), String::from("3 2 U +"));
     }

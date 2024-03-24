@@ -2,39 +2,29 @@ use std::hash::Hash;
 use std::hash::Hasher;
 
 use crate::entity::action::{Action, Direction, Operation};
-use fxhash::FxHashSet;
 use fxhash::FxHasher;
 
-pub struct GameState<'a> {
+pub struct GameState {
     pub board: Vec<Vec<u8>>,
-    pub actions_taken: Vec<Action<'a>>,
-
-    pub all_directions: Vec<&'a Direction>,
-    pub all_operations: Vec<&'a Operation>,
-
-    pub visited_states: FxHashSet<u64>,
 }
 
-impl<'a> Hash for GameState<'a> {
+impl Hash for GameState {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.board.hash(state);
     }
 }
 
-impl<'a> GameState<'a> {
-    pub fn new() -> GameState<'a> {
+impl Clone for GameState {
+    fn clone(&self) -> Self {
         GameState {
-            board: Vec::new(),
-            actions_taken: Vec::new(),
-            all_directions: vec![
-                &Direction::Up,
-                &Direction::Down,
-                &Direction::Left,
-                &Direction::Right,
-            ],
-            all_operations: vec![&Operation::Plus, &Operation::Minus],
-            visited_states: FxHashSet::default(),
+            board: self.board.clone(),
         }
+    }
+}
+
+impl GameState {
+    pub fn new() -> GameState {
+        GameState { board: Vec::new() }
     }
 
     pub fn get_hash(&self) -> u64 {
@@ -49,72 +39,61 @@ impl<'a> GameState<'a> {
         }
     }
 
-    pub fn step(&mut self) -> bool {
-        if self.game_won() {
-            return true;
-        }
-
-        if self.impossible_state() {
-            // eprintln!("Impossible state");
-            return false;
-        }
-
-        let hash = self.get_hash();
-        // eprintln!("Hash: {}", hash);
-        if self.visited_states.contains(&hash) {
-            // eprintln!("Already visited");
-            return false;
-        }
-        self.visited_states.insert(hash);
-
-        for action in self.get_all_possible_actions().iter() {
-            self.apply_action(action);
-            if !self.step() {
-                self.undo_action(action);
-            } else {
-                return true;
+    pub fn get_position_value(&self) -> Vec<(usize, usize, u8)> {
+        let mut positions: Vec<(usize, usize, u8)> = Vec::new();
+        for (row, cells) in self.board.iter().enumerate() {
+            for (col, &cell) in cells.iter().enumerate() {
+                if cell > 0 {
+                    positions.push((row, col, cell));
+                }
             }
         }
-        false
+        positions
     }
 
-    fn apply_action(&mut self, action: &Action<'a>) {
+    pub fn apply_action(&mut self, action: &Action) -> Result<(), bool> {
         // eprintln!("Applying {}", action.to_string());
+
+        if !self.is_valid_action(action.row, action.col, &action.direction) {
+            return Err(false);
+        }
+
+        let source_value = self.board[action.row][action.col] as i8;
         let (r2, c2) = self.get_target_position(
             action.row,
             action.col,
-            action.direction,
-            action.source_value as usize,
+            &action.direction,
+            source_value as usize,
         );
+        let target_value = self.board[r2][c2] as i8;
+
+        if source_value == 0 || target_value == 0 {
+            return Err(false);
+        }
 
         self.board[action.row][action.col] = 0;
         self.board[r2][c2] = match action.op {
-            Operation::Plus => action.source_value + action.target_value,
-            Operation::Minus => {
-                ((action.source_value as i8) - (action.target_value as i8)).unsigned_abs()
-            }
+            Operation::Plus => (source_value + target_value) as u8,
+            Operation::Minus => (source_value - target_value).unsigned_abs(),
         };
-        self.actions_taken.push(action.clone());
+
+        Ok(())
     }
 
-    fn undo_action(&mut self, action: &Action<'a>) {
-        // eprintln!("Reverting {}", action.to_string());
-        let (r2, c2) = self.get_target_position(
-            action.row,
-            action.col,
-            action.direction,
-            action.source_value as usize,
-        );
-
-        self.board[action.row][action.col] = action.source_value;
-        self.board[r2][c2] = action.target_value;
-        self.actions_taken.pop();
-    }
-
-    fn game_won(&self) -> bool {
+    pub fn game_won(&self) -> bool {
         self.board
             .iter()
             .all(|row| row.iter().all(|&cell| cell == 0))
+    }
+
+    pub fn score(&self) -> i32 {
+        let mut score = 0;
+        for row in &self.board {
+            for &cell in row {
+                score += cell as i32;
+            }
+        }
+        score
     }
 
     fn impossible_state(&self) -> bool {
@@ -132,8 +111,8 @@ impl<'a> GameState<'a> {
         return max_value * 2 > sum;
     }
 
-    fn get_all_possible_actions(&self) -> Vec<Action<'a>> {
-        let mut actions: Vec<Action<'a>> = Vec::new();
+    fn get_all_possible_actions(&self) -> Vec<Action> {
+        let mut actions: Vec<Action> = Vec::new();
         for (row, cells) in self.board.iter().enumerate() {
             for (col, &cell) in cells.iter().enumerate() {
                 if cell > 0 {
@@ -144,26 +123,36 @@ impl<'a> GameState<'a> {
         actions
     }
 
-    fn get_actions(&self, row: usize, col: usize) -> Vec<Action<'a>> {
-        let mut actions: Vec<Action<'a>> = Vec::new();
-        for direction in self.all_directions.iter() {
-            if !self.is_valid_action(row, col, direction) {
+    pub fn get_all_tiles(&self) -> Vec<(usize, usize)> {
+        let mut tiles: Vec<(usize, usize)> = Vec::new();
+        for (row, cells) in self.board.iter().enumerate() {
+            for (col, &cell) in cells.iter().enumerate() {
+                if cell > 0 {
+                    tiles.push((row, col));
+                }
+            }
+        }
+        tiles
+    }
+
+    pub fn get_actions(&self, row: usize, col: usize) -> Vec<Action> {
+        let mut actions: Vec<Action> = Vec::new();
+        for direction in [
+            Direction::Up,
+            Direction::Down,
+            Direction::Left,
+            Direction::Right,
+        ] {
+            if !self.is_valid_action(row, col, &direction) {
                 continue;
             }
 
-            for op in self.all_operations.iter() {
-                let source_value = self.board[row][col];
-
-                let (r, c) = self.get_target_position(row, col, direction, source_value as usize);
-                let target_value = self.board[r][c];
-
-                let action: Action<'a> = Action {
+            for op in [Operation::Plus, Operation::Minus] {
+                let action: Action = Action {
                     row,
                     col,
-                    direction,
-                    op,
-                    source_value,
-                    target_value,
+                    direction: direction.clone(),
+                    op: op.clone(),
                 };
                 actions.push(action);
             }
@@ -171,7 +160,7 @@ impl<'a> GameState<'a> {
         actions
     }
 
-    fn is_valid_action(&self, row: usize, col: usize, direction: &Direction) -> bool {
+    pub fn is_valid_action(&self, row: usize, col: usize, direction: &Direction) -> bool {
         let value = self.board[row][col] as usize;
         match direction {
             Direction::Up => row >= value && self.board[row - value][col] > 0,
@@ -183,7 +172,7 @@ impl<'a> GameState<'a> {
         }
     }
 
-    fn get_target_position(
+    pub fn get_target_position(
         &self,
         row: usize,
         col: usize,

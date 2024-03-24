@@ -1,6 +1,6 @@
 use std::io;
-use std::io::BufRead;
 
+use crate::entity::action::Action;
 use crate::entity::game_state::GameState;
 
 macro_rules! parse_input {
@@ -9,7 +9,7 @@ macro_rules! parse_input {
     };
 }
 
-pub fn read_input() -> GameState<'static> {
+pub fn read_input() -> GameState {
     let mut game_state = GameState::new();
 
     let mut input_line = String::new();
@@ -28,4 +28,10 @@ pub fn read_input() -> GameState<'static> {
     }
 
     game_state
+}
+
+pub fn write_output(solution: Vec<Action>) {
+    solution.iter().for_each(|action| {
+        println!("{}", action.to_string());
+    });
 }
