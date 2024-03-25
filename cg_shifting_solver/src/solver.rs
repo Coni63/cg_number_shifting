@@ -7,7 +7,7 @@ use rand::Rng;
 
 pub struct Solver {
     pub play_game: GameState,
-    pub late_acceptance: VecDeque<Solution>,
+    pub late_acceptance: VecDeque<i32>,
     pub init_score: i32,
     pub init_board_prep: Vec<(usize, usize, u8)>,
 }
@@ -23,27 +23,38 @@ impl Solver {
     }
 
     pub fn solve(&mut self) -> Solution {
-        let solution = self.generate_random_solution();
-        self.late_acceptance.push_front(solution);
+        let mut solution = self.generate_random_solution();
+        self.late_acceptance.push_front(solution.score);
+
+        let mut loop_count = 0;
 
         loop {
-            let source_solution = self.late_acceptance.front().unwrap().clone();
-            let new_solution = self.mutate(&source_solution);
+            if loop_count > 1000000 {
+                loop_count = 0;
+                solution = self.generate_random_solution();
+                self.late_acceptance.clear();
+                self.late_acceptance.push_front(solution.score);
+                eprintln!("Restarting")
+            }
 
-            // eprintln!("Score: {}", new_solution.score);
+            solution = self.mutate(&solution);
 
-            if new_solution.score == 0 {
-                return new_solution;
+            if solution.score == 0 {
+                return solution;
             }
 
             if self.late_acceptance.len() < self.late_acceptance.capacity() {
-                self.late_acceptance.push_front(new_solution);
+                self.late_acceptance.push_front(solution.score);
             } else {
-                let max_score = self.late_acceptance.iter().map(|s| s.score).max().unwrap();
-                if new_solution.score <= max_score {
-                    self.late_acceptance.push_front(new_solution);
+                let max_score = self.late_acceptance.iter().max().unwrap();
+                let t = rand::thread_rng().gen_range(0.0..1.0);
+                if &solution.score <= max_score || t < 0.05 {
+                    self.late_acceptance.pop_back();
+                    self.late_acceptance.push_front(solution.score);
                 }
             }
+
+            loop_count += 1;
         }
     }
 
