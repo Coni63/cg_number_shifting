@@ -1,4 +1,3 @@
-import multiprocessing
 from pathlib import Path
 import subprocess
 import time
@@ -142,46 +141,6 @@ def main():
         add_level(number_level, level_pass, level_data)
 
 
-def main_multi():
-    """
-    Main function to solve all the levels. Starting from the last solved level, it will solve all the levels after that.
-    
-    TODO: Solve the issue with the subprocesses locking the input/output files.
-    """
-    handle = _get_api_handle()
-    while True:
-        level_pass, number_level = extract_current_puzzle()
-        if level_pass is None:
-            break
-
-        num_processes = 5
-        processes = []
-
-        # Start N subprocesses
-        for _ in range(num_processes):
-            p = multiprocessing.Process(target=solve_level)
-            p.start()
-            processes.append(p)
-            time.sleep(0.1)
-
-        # Wait for any subprocess to finish
-        _ = multiprocessing.connection.wait(processes)
-
-        # Terminate all remaining subprocesses
-        for p in processes:
-            if p.is_alive():
-                p.terminate()
-
-        solution = _load_current_solution()
-        set_solution(number_level, solution)
-        level_pass, number_level, level_data = submit_solution(handle, level_pass, solution)
-
-        if level_pass is None:
-            break
-
-        add_level(number_level, level_pass, level_data)
-
-
 def main_offline():
     """
     Main function to solve the last unsolved puzzle. This version is offline so it will not
@@ -231,8 +190,8 @@ def setup_db():
 
 if __name__ == "__main__":
     # setup_db()
-    main()
+    # main()
     # main_multi()
     # main_offline()
-    # dry_run(1, 15)
+    dry_run(1, 25)
     # benchmark(1, 15)

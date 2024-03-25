@@ -22,7 +22,7 @@ impl Solver {
         }
     }
 
-    pub fn solve(&mut self) -> Solution {
+    pub fn solve(&mut self) -> Option<Solution> {
         let mut solution = self.generate_random_solution();
         self.late_acceptance.push_front(solution.score);
 
@@ -40,7 +40,7 @@ impl Solver {
             solution = self.mutate(&solution);
 
             if solution.score == 0 {
-                return solution;
+                return Some(solution);
             }
 
             if self.late_acceptance.len() < self.late_acceptance.capacity() {
