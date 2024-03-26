@@ -56,8 +56,8 @@ fn main() {
 
     // Check if a solution is found
     if let Some(solution) = solution {
-        println!("Solution found: {:?}", solution);
+        eprintln!("Solution found: {:?}", solution);
     } else {
-        println!("No solution found.");
+        eprintln!("No solution found.");
     }
 }

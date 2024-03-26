@@ -26,7 +26,7 @@ impl Solver {
 
     pub fn solve(&mut self) -> Option<Solution> {
         let mut solution = self.generate_random_solution();
-        self.late_acceptance.push_front(solution.score);
+        // self.late_acceptance.push_front(solution.score);
 
         let mut loop_count = 0;
 
@@ -34,8 +34,8 @@ impl Solver {
             if loop_count > 1000000 {
                 loop_count = 0;
                 solution = self.generate_random_solution();
-                self.late_acceptance.clear();
-                self.late_acceptance.push_front(solution.score);
+                // self.late_acceptance.clear();
+                // self.late_acceptance.push_front(solution.score);
                 self.metric = self.get_random_metric();
                 eprintln!("Restarting with new metric: {:?}", self.metric);
             }
@@ -46,16 +46,16 @@ impl Solver {
                 return Some(solution);
             }
 
-            if self.late_acceptance.len() < self.late_acceptance.capacity() {
-                self.late_acceptance.push_front(solution.score);
-            } else {
-                let max_score = self.late_acceptance.iter().max().unwrap();
-                let t = rand::thread_rng().gen_range(0.0..1.0);
-                if &solution.score <= max_score || t < 0.05 {
-                    self.late_acceptance.pop_back();
-                    self.late_acceptance.push_front(solution.score);
-                }
-            }
+            // if self.late_acceptance.len() < self.late_acceptance.capacity() {
+            //     self.late_acceptance.push_front(solution.score);
+            // } else {
+            //     let max_score = self.late_acceptance.iter().max().unwrap();
+            //     let t = rand::thread_rng().gen_range(0.0..1.0);
+            //     if &solution.score <= max_score || t < 0.05 {
+            //         self.late_acceptance.pop_back();
+            //         self.late_acceptance.push_front(solution.score);
+            //     }
+            // }
 
             loop_count += 1;
         }
@@ -76,11 +76,11 @@ impl Solver {
         }
 
         // alter the action
-        let prev_action = base_solution.actions.get(idx_mutated).unwrap();
-        if let Some(altered_action) = self.alter_action(prev_action) {
-            self.play_game.apply_action(&altered_action).unwrap();
-            new_actions.push(altered_action);
-        }
+        // let prev_action = base_solution.actions.get(idx_mutated).unwrap();
+        // if let Some(altered_action) = self.alter_action(prev_action) {
+        //     self.play_game.apply_action(&altered_action).unwrap();
+        //     new_actions.push(altered_action);
+        // }
 
         // replay the game to the end -- filter out invalid actions
         for i in idx_mutated + 1..base_solution.actions.len() {
