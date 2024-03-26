@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use crate::entity::action::{Action, Direction, Operation};
+use crate::entity::action::{Action, Direction, Metric, Operation};
 use crate::entity::game_state::GameState;
 use rand::seq::SliceRandom;
 use rand::Rng;
@@ -10,15 +10,17 @@ pub struct Solver {
     pub late_acceptance: VecDeque<i32>,
     pub init_score: i32,
     pub init_board_prep: Vec<(usize, usize, u8)>,
+    pub metric: Metric,
 }
 
 impl Solver {
-    pub fn new(game: GameState) -> Solver {
+    pub fn new(game: GameState, metric: Metric) -> Solver {
         Solver {
-            init_score: game.score(),
+            init_score: game.score(&metric),
             init_board_prep: game.get_position_value(),
             play_game: game,
             late_acceptance: VecDeque::with_capacity(20),
+            metric,
         }
     }
 
@@ -34,7 +36,8 @@ impl Solver {
                 solution = self.generate_random_solution();
                 self.late_acceptance.clear();
                 self.late_acceptance.push_front(solution.score);
-                eprintln!("Restarting")
+                self.metric = self.get_random_metric();
+                eprintln!("Restarting with new metric: {:?}", self.metric);
             }
 
             solution = self.mutate(&solution);
@@ -95,7 +98,7 @@ impl Solver {
 
         let new_solution = Solution {
             actions: new_actions,
-            score: self.play_game.score(),
+            score: self.play_game.score(&self.metric),
         };
 
         self.reset_game();
@@ -116,7 +119,7 @@ impl Solver {
             solution.actions.push(action);
         }
 
-        solution.score = self.play_game.score();
+        solution.score = self.play_game.score(&self.metric);
 
         self.reset_game();
         solution
@@ -164,6 +167,17 @@ impl Solver {
         }
 
         None
+    }
+
+    fn get_random_metric(&self) -> Metric {
+        let mut rng = rand::thread_rng();
+        let index = rng.gen_range(0..3);
+        match index {
+            0 => Metric::RemainingSum,
+            1 => Metric::RemainingTiles,
+            2 => Metric::ColRowsUsed,
+            _ => unreachable!(), // This should never happen
+        }
     }
 }
 

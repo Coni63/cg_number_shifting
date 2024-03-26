@@ -1,7 +1,7 @@
 use std::hash::Hash;
 use std::hash::Hasher;
 
-use crate::entity::action::{Action, Direction, Operation};
+use crate::entity::action::{Action, Direction, Metric, Operation};
 use fxhash::FxHasher;
 
 pub struct GameState {
@@ -86,7 +86,15 @@ impl GameState {
             .all(|row| row.iter().all(|&cell| cell == 0))
     }
 
-    pub fn score(&self) -> i32 {
+    pub fn score(&self, metric: &Metric) -> i32 {
+        match metric {
+            Metric::RemainingSum => self.score_total_sum(),
+            Metric::RemainingTiles => self.score_count_tiles(),
+            Metric::ColRowsUsed => self.score_col_rows_used(),
+        }
+    }
+
+    fn score_total_sum(&self) -> i32 {
         let mut score = 0;
         for row in &self.board {
             for &cell in row {
@@ -94,6 +102,37 @@ impl GameState {
             }
         }
         score
+    }
+
+    fn score_count_tiles(&self) -> i32 {
+        let mut score: i32 = 0;
+        for row in &self.board {
+            for &cell in row {
+                if cell > 0 {
+                    score += 1;
+                }
+            }
+        }
+        score
+    }
+
+    fn score_col_rows_used(&self) -> i32 {
+        let rows_used = self
+            .board
+            .iter()
+            .filter(|&row| row.iter().any(|&cell| cell > 0))
+            .count() as i32;
+
+        let mut cols_used = 0;
+        for col in 0..self.board[0].len() {
+            cols_used += if self.board.iter().any(|row| row[col] > 0) {
+                1
+            } else {
+                0
+            };
+        }
+
+        rows_used + cols_used
     }
 
     fn impossible_state(&self) -> bool {

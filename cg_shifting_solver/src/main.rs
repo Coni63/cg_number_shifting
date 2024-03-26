@@ -8,6 +8,7 @@ use std::sync::{
 mod entity;
 mod loader;
 mod solver;
+use entity::action::Metric;
 use entity::game_state::GameState;
 use solver::Solution;
 use solver::Solver;
@@ -38,7 +39,7 @@ fn main() {
     // Create solvers in parallel and stop as soon as one finds the solution
     let solution = (0..num_solvers).into_par_iter().find_any(|_| {
         let game_clone = game.clone(); // Create a deep copy of the game
-        let solver = RefCell::new(solver::Solver::new(game_clone));
+        let solver = RefCell::new(solver::Solver::new(game_clone, Metric::RemainingSum));
 
         if !solution_found.load(Ordering::Relaxed) {
             let mut solver_mut = solver.borrow_mut();

@@ -1,3 +1,10 @@
+#[derive(Debug)]
+pub enum Metric {
+    RemainingSum,
+    RemainingTiles,
+    ColRowsUsed,
+}
+
 pub enum Direction {
     Up,
     Down,
