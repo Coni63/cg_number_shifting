@@ -10,24 +10,24 @@ macro_rules! parse_input {
 }
 
 pub fn read_input() -> GameState {
-    let mut game_state = GameState::new();
-
     let mut input_line = String::new();
     io::stdin().read_line(&mut input_line).unwrap();
     let inputs = input_line.split(' ').collect::<Vec<_>>();
-    let _width = parse_input!(inputs[0], i32);
-    let height = parse_input!(inputs[1], i32);
-    for _ in 0..height as usize {
+    let width = parse_input!(inputs[0], usize);
+    let height = parse_input!(inputs[1], usize);
+
+    let mut board: Vec<Vec<u8>> = Vec::new();
+    for _ in 0..height {
         let mut inputs = String::new();
         io::stdin().read_line(&mut inputs).unwrap();
         let row = inputs
             .split_whitespace()
             .map(|x| x.parse::<u8>().unwrap())
             .collect::<Vec<u8>>();
-        game_state.board.push(row);
+        board.push(row);
     }
 
-    game_state
+    GameState::new(width, height, board)
 }
 
 pub fn write_output(solution: Vec<Action>) {

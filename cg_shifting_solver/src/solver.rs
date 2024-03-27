@@ -1,32 +1,31 @@
-use std::collections::VecDeque;
-
-use crate::entity::action::{Action, Direction, Metric, Operation};
+use crate::entity::action::Action;
+use crate::entity::enums::Metric;
 use crate::entity::game_state::GameState;
+use crate::entity::solution::Solution;
 use rand::seq::SliceRandom;
 use rand::Rng;
 
 pub struct Solver {
-    pub play_game: GameState,
-    pub late_acceptance: VecDeque<i32>,
+    pub game: GameState,
     pub init_score: i32,
-    pub init_board_prep: Vec<(usize, usize, u8)>,
     pub metric: Metric,
+    pub temperature: f64,
+    pub cooling_rate: f64,
 }
 
 impl Solver {
     pub fn new(game: GameState, metric: Metric) -> Solver {
         Solver {
             init_score: game.score(&metric),
-            init_board_prep: game.get_position_value(),
-            play_game: game,
-            late_acceptance: VecDeque::with_capacity(20),
+            game,
             metric,
+            temperature: 1.0,
+            cooling_rate: 0.9999,
         }
     }
 
     pub fn solve(&mut self) -> Option<Solution> {
         let mut solution = self.generate_random_solution();
-        // self.late_acceptance.push_front(solution.score);
 
         let mut loop_count = 0;
 
@@ -34,30 +33,42 @@ impl Solver {
             if loop_count > 1000000 {
                 loop_count = 0;
                 solution = self.generate_random_solution();
-                // self.late_acceptance.clear();
-                // self.late_acceptance.push_front(solution.score);
                 self.metric = self.get_random_metric();
                 eprintln!("Restarting with new metric: {:?}", self.metric);
             }
 
-            solution = self.mutate(&solution);
+            let mut mutated_solution = self.mutate(&solution);
 
             if solution.score == 0 {
+                eprintln!("Solution found: {:?}", solution.score);
                 return Some(solution);
             }
 
-            // if self.late_acceptance.len() < self.late_acceptance.capacity() {
-            //     self.late_acceptance.push_front(solution.score);
-            // } else {
-            //     let max_score = self.late_acceptance.iter().max().unwrap();
-            //     let t = rand::thread_rng().gen_range(0.0..1.0);
-            //     if &solution.score <= max_score || t < 0.05 {
-            //         self.late_acceptance.pop_back();
-            //         self.late_acceptance.push_front(solution.score);
-            //     }
-            // }
+            let acceptance_probability =
+                self.acceptance_probability(solution.score, mutated_solution.score);
+            if acceptance_probability > rand::random::<f64>() {
+                solution = mutated_solution;
+            }
+
+            self.temperature *= self.cooling_rate;
 
             loop_count += 1;
+        }
+    }
+
+    fn acceptance_probability(&self, score: i32, new_score: i32) -> f64 {
+        let diff = (new_score - score) as f64; // negative is good
+
+        if diff < 0.0 {
+            1.0
+        } else if diff == 0.0 {
+            0.5
+        } else {
+            let p = (-diff / self.temperature).exp();
+
+            // eprintln!("p: {:?} - diff: {} - T: {}", p, diff, self.temperature);
+
+            p * 0.5
         }
     }
 
@@ -66,19 +77,18 @@ impl Solver {
         let idx_mutated = rng.gen_range(0..base_solution.actions.len());
 
         let mut new_actions: Vec<Action> = Vec::new();
+        self.game.reset();
 
         // replay the game to the state of the base solution
         for i in 0..idx_mutated {
-            self.play_game
-                .apply_action(&base_solution.actions[i])
-                .unwrap();
             new_actions.push(base_solution.actions[i].clone());
+            self.game.apply_action(&base_solution.actions[i]).unwrap();
         }
 
         // alter the action
-        // let prev_action = base_solution.actions.get(idx_mutated).unwrap();
-        // if let Some(altered_action) = self.alter_action(prev_action) {
-        //     self.play_game.apply_action(&altered_action).unwrap();
+        // let prev_action = base_solution.actions[idx_mutated];
+        // if let Some(altered_action) = self.alter_action(&prev_action) {
+        //     self.game.apply_action(&altered_action).unwrap();
         //     new_actions.push(altered_action);
         // }
 
@@ -86,63 +96,65 @@ impl Solver {
         for i in idx_mutated + 1..base_solution.actions.len() {
             let action = base_solution.actions.get(i).unwrap();
 
-            if let Ok(()) = self.play_game.apply_action(action) {
+            if self
+                .game
+                .is_valid_action(action.row, action.col, &(action.direction))
+            {
+                self.game.apply_action(action).unwrap();
                 new_actions.push(action.clone());
             }
         }
 
         // add random actions to the end
         while let Some(action) = self.get_random_action() {
+            self.game.apply_action(&action).unwrap();
             new_actions.push(action);
         }
 
-        let new_solution = Solution {
+        Solution {
             actions: new_actions,
-            score: self.play_game.score(&self.metric),
-        };
-
-        self.reset_game();
-
-        new_solution
-    }
-
-    pub fn reset_game(&mut self) {
-        for (row, col, value) in self.init_board_prep.iter() {
-            self.play_game.board[*row][*col] = *value;
+            score: self.game.score(&self.metric),
         }
     }
 
-    pub fn generate_random_solution(&mut self) -> Solution {
-        let mut solution = Solution::new(self.init_score);
+    fn generate_random_solution(&mut self) -> Solution {
+        self.game.reset();
+        let mut actions: Vec<Action> = Vec::new();
 
         while let Some(action) = self.get_random_action() {
-            solution.actions.push(action);
+            self.game.apply_action(&action).unwrap();
+            actions.push(action);
         }
 
-        solution.score = self.play_game.score(&self.metric);
-
-        self.reset_game();
-        solution
+        Solution::new(actions, self.game.score(&self.metric))
     }
 
     fn alter_action(&self, action: &Action) -> Option<Action> {
         let mut rng = rand::thread_rng();
 
-        let possible_actions = self.play_game.get_actions(action.row, action.col);
+        let mut possible_actions = self.game.get_actions(action.row, action.col);
 
         if possible_actions.len() <= 1 {
             return None;
         }
 
-        let new_action = possible_actions.choose(&mut rng).unwrap().to_owned();
+        possible_actions.shuffle(&mut rng);
 
-        Some(new_action)
+        for new_action in possible_actions.iter() {
+            if new_action == action {
+                continue;
+            }
+
+            return Some(new_action.clone());
+        }
+
+        None
     }
 
     fn get_random_action(&mut self) -> Option<Action> {
         let mut rng = rand::thread_rng();
 
-        let mut pos = self.play_game.get_all_tiles();
+        let mut pos = self.game.get_position_value();
 
         if pos.is_empty() {
             return None;
@@ -150,8 +162,8 @@ impl Solver {
 
         pos.shuffle(&mut rng);
 
-        for (row, col) in pos.iter() {
-            let mut actions = self.play_game.get_actions(*row, *col);
+        for (row, col, _) in pos.iter() {
+            let mut actions = self.game.get_actions(*row, *col);
 
             if actions.is_empty() {
                 continue;
@@ -160,7 +172,10 @@ impl Solver {
             actions.shuffle(&mut rng);
 
             for action in actions {
-                if let Ok(()) = self.play_game.apply_action(&action) {
+                if self
+                    .game
+                    .is_valid_action(action.row, action.col, &(action.direction))
+                {
                     return Some(action);
                 }
             }
@@ -177,29 +192,6 @@ impl Solver {
             1 => Metric::RemainingTiles,
             2 => Metric::ColRowsUsed,
             _ => unreachable!(), // This should never happen
-        }
-    }
-}
-
-pub struct Solution {
-    pub actions: Vec<Action>,
-    pub score: i32,
-}
-
-impl Solution {
-    pub fn new(base_score: i32) -> Solution {
-        Solution {
-            actions: Vec::new(),
-            score: base_score,
-        }
-    }
-}
-
-impl Clone for Solution {
-    fn clone(&self) -> Solution {
-        Solution {
-            actions: self.actions.clone(),
-            score: self.score,
         }
     }
 }

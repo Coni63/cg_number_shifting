@@ -1,11 +1,15 @@
 use std::hash::Hash;
 use std::hash::Hasher;
 
-use crate::entity::action::{Action, Direction, Metric, Operation};
+use crate::entity::action::Action;
+use crate::entity::enums::{Direction, Metric, Operation};
 use fxhash::FxHasher;
 
 pub struct GameState {
+    pub width: usize,
+    pub height: usize,
     pub board: Vec<Vec<u8>>,
+    pub init_state: Vec<(usize, usize, u8)>,
 }
 
 impl Hash for GameState {
@@ -18,13 +22,29 @@ impl Clone for GameState {
     fn clone(&self) -> Self {
         GameState {
             board: self.board.clone(),
+            width: self.width,
+            height: self.height,
+            init_state: self.init_state.clone(),
         }
     }
 }
 
 impl GameState {
-    pub fn new() -> GameState {
-        GameState { board: Vec::new() }
+    pub fn new(width: usize, height: usize, board: Vec<Vec<u8>>) -> GameState {
+        let mut game = GameState {
+            width,
+            height,
+            board,
+            init_state: Vec::new(),
+        };
+        game.init_state = game.get_position_value();
+        game
+    }
+
+    pub fn reset(&mut self) {
+        for (row, col, value) in self.init_state.iter() {
+            self.board[*row][*col] = *value;
+        }
     }
 
     pub fn get_hash(&self) -> u64 {
@@ -52,24 +72,20 @@ impl GameState {
     }
 
     pub fn apply_action(&mut self, action: &Action) -> Result<(), bool> {
-        // eprintln!("Applying {}", action.to_string());
-
         if !self.is_valid_action(action.row, action.col, &action.direction) {
             return Err(false);
         }
 
-        let source_value = self.board[action.row][action.col] as i8;
-        let (r2, c2) = self.get_target_position(
-            action.row,
-            action.col,
-            &action.direction,
-            source_value as usize,
-        );
-        let target_value = self.board[r2][c2] as i8;
+        let value = self.board[action.row][action.col] as usize;
+        let (r2, c2) = match &action.direction {
+            Direction::Up => (action.row - value, action.col),
+            Direction::Down => (action.row + value, action.col),
+            Direction::Left => (action.row, action.col - value),
+            Direction::Right => (action.row, action.col + value),
+        };
 
-        if source_value == 0 || target_value == 0 {
-            return Err(false);
-        }
+        let source_value = self.board[action.row][action.col] as i8;
+        let target_value = self.board[r2][c2] as i8;
 
         self.board[action.row][action.col] = 0;
         self.board[r2][c2] = match action.op {
@@ -135,45 +151,6 @@ impl GameState {
         rows_used + cols_used
     }
 
-    fn impossible_state(&self) -> bool {
-        // if the highest value is above the sum of all other values it's impossible
-        let mut max_value = 0;
-        let mut sum = 0;
-        for row in &self.board {
-            for &cell in row {
-                if cell > max_value {
-                    max_value = cell;
-                }
-                sum += cell;
-            }
-        }
-        return max_value * 2 > sum;
-    }
-
-    fn get_all_possible_actions(&self) -> Vec<Action> {
-        let mut actions: Vec<Action> = Vec::new();
-        for (row, cells) in self.board.iter().enumerate() {
-            for (col, &cell) in cells.iter().enumerate() {
-                if cell > 0 {
-                    actions.extend(self.get_actions(row, col));
-                }
-            }
-        }
-        actions
-    }
-
-    pub fn get_all_tiles(&self) -> Vec<(usize, usize)> {
-        let mut tiles: Vec<(usize, usize)> = Vec::new();
-        for (row, cells) in self.board.iter().enumerate() {
-            for (col, &cell) in cells.iter().enumerate() {
-                if cell > 0 {
-                    tiles.push((row, col));
-                }
-            }
-        }
-        tiles
-    }
-
     pub fn get_actions(&self, row: usize, col: usize) -> Vec<Action> {
         let mut actions: Vec<Action> = Vec::new();
         for direction in [
@@ -201,28 +178,14 @@ impl GameState {
 
     pub fn is_valid_action(&self, row: usize, col: usize, direction: &Direction) -> bool {
         let value = self.board[row][col] as usize;
+        if value == 0 {
+            return false;
+        }
         match direction {
             Direction::Up => row >= value && self.board[row - value][col] > 0,
-            Direction::Down => row + value < self.board.len() && self.board[row + value][col] > 0,
+            Direction::Down => row + value < self.height && self.board[row + value][col] > 0,
             Direction::Left => col >= value && self.board[row][col - value] > 0,
-            Direction::Right => {
-                col + value < self.board[0].len() && self.board[row][col + value] > 0
-            }
-        }
-    }
-
-    pub fn get_target_position(
-        &self,
-        row: usize,
-        col: usize,
-        direction: &Direction,
-        value: usize,
-    ) -> (usize, usize) {
-        match direction {
-            Direction::Up => (row - value, col),
-            Direction::Down => (row + value, col),
-            Direction::Left => (row, col - value),
-            Direction::Right => (row, col + value),
+            Direction::Right => col + value < self.width && self.board[row][col + value] > 0,
         }
     }
 }
