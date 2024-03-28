@@ -46,7 +46,7 @@ def _extract_puzzle(level: Results):
         f.write(level.level_input)
 
 
-def extract_current_puzzle() -> tuple[str, int]:
+def extract_current_puzzle() -> tuple[str, int, bool]:
     """
     Prepare the input file for the solver by extracting the puzzle from the database.
     """
@@ -56,7 +56,7 @@ def extract_current_puzzle() -> tuple[str, int]:
         return None, None
     
     _extract_puzzle(level)
-    return (level.level_pass, level.level_number)
+    return (level.level_pass, level.level_number, level.solved)
 
 
 def extract_puzzle_by_id(level_id: int) -> str:
@@ -123,7 +123,7 @@ def main():
     """
     handle = _get_api_handle()
     while True:
-        level_pass, number_level = extract_current_puzzle()
+        level_pass, number_level, solved = extract_current_puzzle()
         if level_pass is None:
             break
 
@@ -131,6 +131,7 @@ def main():
         if not worked:
             break
         
+        print(f"Level {number_level} solved... Saving solution.")
         solution = _load_current_solution()
         set_solution(number_level, solution)
         level_pass, number_level, level_data = submit_solution(handle, level_pass, solution)
@@ -176,9 +177,9 @@ def dry_run(a, b,):
 
 
 def setup_db():
-    """
-    Initialize the database with the first few levels.
-    """
+    # """
+    # Initialize the database with the first few levels.
+    # """
     add_level(1, "first_level", "8 5\n0 0 0 4 0 0 0 0\n0 0 0 0 0 0 0 0\n0 0 0 0 0 0 0 0\n0 0 0 0 0 0 0 0\n0 0 0 1 0 0 2 1")
     set_solution(1, "7 4 L +\n3 0 D -\n6 4 L -")
 
@@ -188,10 +189,12 @@ def setup_db():
     add_level(3, "vtiuddduknpfjutlzlxrkbavooshdkgt", "8 5\n0 3 0 0 0 0 0 0\n0 0 0 0 0 0 0 0\n0 3 0 0 0 0 0 0\n0 6 0 2 0 0 0 0\n0 2 0 0 0 0 0 0\n")
 
 
+
+
 if __name__ == "__main__":
     # setup_db()
-    # main()
+    main()
     # main_multi()
     # main_offline()
-    dry_run(1, 25)
+    # dry_run(1, 25)
     # benchmark(1, 15)

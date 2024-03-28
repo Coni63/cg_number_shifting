@@ -16,14 +16,14 @@ pub fn read_input() -> GameState {
     let width = parse_input!(inputs[0], usize);
     let height = parse_input!(inputs[1], usize);
 
-    let mut board: Vec<Vec<u8>> = Vec::new();
+    let mut board: Vec<Vec<u16>> = Vec::new();
     for _ in 0..height {
         let mut inputs = String::new();
         io::stdin().read_line(&mut inputs).unwrap();
         let row = inputs
             .split_whitespace()
-            .map(|x| x.parse::<u8>().unwrap())
-            .collect::<Vec<u8>>();
+            .map(|x| x.parse::<u16>().unwrap())
+            .collect::<Vec<u16>>();
         board.push(row);
     }
 

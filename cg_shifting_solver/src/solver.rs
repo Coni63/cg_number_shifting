@@ -11,17 +11,22 @@ pub struct Solver {
     pub metric: Metric,
     pub temperature: f64,
     pub cooling_rate: f64,
+    pub num_steps: i32,
 }
 
 impl Solver {
     pub fn new(game: GameState, metric: Metric) -> Solver {
-        Solver {
+        let mut s = Solver {
             init_score: game.score(&metric),
             game,
             metric,
             temperature: 1.0,
-            cooling_rate: 0.9999,
-        }
+            num_steps: 200_000,
+            cooling_rate: 1.0,
+        };
+        s.cooling_rate = (0.001_f64.log2() / s.num_steps as f64).exp2();
+        eprintln!("Cooling rate: {:?}", s.cooling_rate);
+        s
     }
 
     pub fn solve(&mut self) -> Option<Solution> {
@@ -30,14 +35,15 @@ impl Solver {
         let mut loop_count = 0;
 
         loop {
-            if loop_count > 1000000 {
+            if loop_count > self.num_steps {
                 loop_count = 0;
                 solution = self.generate_random_solution();
+                self.temperature = 1.0;
                 self.metric = self.get_random_metric();
                 eprintln!("Restarting with new metric: {:?}", self.metric);
             }
 
-            let mut mutated_solution = self.mutate(&solution);
+            let mutated_solution = self.mutate(&solution);
 
             if solution.score == 0 {
                 eprintln!("Solution found: {:?}", solution.score);

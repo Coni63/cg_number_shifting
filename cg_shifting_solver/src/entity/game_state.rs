@@ -8,8 +8,8 @@ use fxhash::FxHasher;
 pub struct GameState {
     pub width: usize,
     pub height: usize,
-    pub board: Vec<Vec<u8>>,
-    pub init_state: Vec<(usize, usize, u8)>,
+    pub board: Vec<Vec<u16>>,
+    pub init_state: Vec<(usize, usize, u16)>,
 }
 
 impl Hash for GameState {
@@ -30,7 +30,7 @@ impl Clone for GameState {
 }
 
 impl GameState {
-    pub fn new(width: usize, height: usize, board: Vec<Vec<u8>>) -> GameState {
+    pub fn new(width: usize, height: usize, board: Vec<Vec<u16>>) -> GameState {
         let mut game = GameState {
             width,
             height,
@@ -59,8 +59,8 @@ impl GameState {
         }
     }
 
-    pub fn get_position_value(&self) -> Vec<(usize, usize, u8)> {
-        let mut positions: Vec<(usize, usize, u8)> = Vec::new();
+    pub fn get_position_value(&self) -> Vec<(usize, usize, u16)> {
+        let mut positions: Vec<(usize, usize, u16)> = Vec::new();
         for (row, cells) in self.board.iter().enumerate() {
             for (col, &cell) in cells.iter().enumerate() {
                 if cell > 0 {
@@ -72,9 +72,9 @@ impl GameState {
     }
 
     pub fn apply_action(&mut self, action: &Action) -> Result<(), bool> {
-        if !self.is_valid_action(action.row, action.col, &action.direction) {
-            return Err(false);
-        }
+        // if !self.is_valid_action(action.row, action.col, &action.direction) {
+        //     return Err(false);
+        // }
 
         let value = self.board[action.row][action.col] as usize;
         let (r2, c2) = match &action.direction {
@@ -84,12 +84,12 @@ impl GameState {
             Direction::Right => (action.row, action.col + value),
         };
 
-        let source_value = self.board[action.row][action.col] as i8;
-        let target_value = self.board[r2][c2] as i8;
+        let source_value = self.board[action.row][action.col] as i16;
+        let target_value = self.board[r2][c2] as i16;
 
         self.board[action.row][action.col] = 0;
         self.board[r2][c2] = match action.op {
-            Operation::Plus => (source_value + target_value) as u8,
+            Operation::Plus => (source_value + target_value) as u16,
             Operation::Minus => (source_value - target_value).unsigned_abs(),
         };
 
