@@ -6,6 +6,8 @@ import requests
 from database import Results, add_level, get_level_by_id, set_solution, get_first_unsolved
 from dotenv import load_dotenv
 import os
+import bz2
+import base64
 
 load_dotenv()
 
@@ -82,7 +84,7 @@ def solve_level() -> bool:
     return exit_code == 0
 
 
-def submit_solution(handle: int, level_pass: str, solution: str) -> tuple[str, int, str]:
+def submit_solution(handle: int, level_pass: str, solution: str) -> tuple[str, int]:
     """
     Submit the solution to the Codingame API and return the next level pass and level data.
 
@@ -104,17 +106,62 @@ def submit_solution(handle: int, level_pass: str, solution: str) -> tuple[str, i
 
     if r.status_code != 200:
         print(f"Failed to submit solution: {r.status_code}")
-        return None, None, None
+        return None, None
 
     data = r.json()
     for frame in data["frames"]:
         if "Code for next level" in frame.get("gameInformation", ""):
             game_info = frame.get("gameInformation", "")
             level_pass = game_info.split("\n")[0].split(":")[1].strip()
-            level_data = game_info.split("\n", 1)[1]
             number_level = 1 + int(data["metadata"]["Level"])
-            return level_pass, number_level, level_data
-    return None, None, None
+            return level_pass, number_level
+    return None, None
+
+
+def get_level_data(handle: int, level_pass: str) -> str:
+    solution = f"""
+import sys
+import math
+import bz2
+import base64
+
+print("{level_pass}")
+
+while True:
+    line = input()
+    txt = [line]
+    width, height = [int(i) for i in line.split()]
+    for i in range(height):
+        line = input()
+        txt.append(line)
+
+    string_to_encode = "\\n".join(txt)
+    c = bz2.BZ2Compressor(9)
+    compressed_data = c.compress(string_to_encode.encode("utf-8")) + c.flush()
+    compressed_string = base64.b64encode(compressed_data).decode("utf-8")
+
+    print(compressed_string)
+"""
+    r = session.post(
+        "https://www.codingame.com/services/TestSession/play",
+        json=[
+            handle,
+            {
+                "code": solution,
+                "programmingLanguageId": "Python3",
+                "multipleLanguages": {"testIndex": 1},
+            },
+        ],
+    )
+    data = r.json()
+
+    compressed_string = data["frames"][-1]["stdout"].split("\n")[0]
+
+    d = bz2.BZ2Decompressor()
+    data2 = base64.b64decode(compressed_string.encode("utf-8"))
+    data = d.decompress(data2).decode("utf-8")
+
+    return data
 
 
 def main():
@@ -134,10 +181,12 @@ def main():
         print(f"Level {number_level} solved... Saving solution.")
         solution = _load_current_solution()
         set_solution(number_level, solution)
-        level_pass, number_level, level_data = submit_solution(handle, level_pass, solution)
+        level_pass, number_level = submit_solution(handle, level_pass, solution)
         
         if level_pass is None:
             break
+
+        level_data = get_level_data(handle, level_pass)
 
         add_level(number_level, level_pass, level_data)
 
