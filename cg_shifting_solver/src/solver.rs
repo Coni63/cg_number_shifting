@@ -177,14 +177,7 @@ impl Solver {
 
             actions.shuffle(&mut rng);
 
-            for action in actions {
-                if self
-                    .game
-                    .is_valid_action(action.row, action.col, &(action.direction))
-                {
-                    return Some(action);
-                }
-            }
+            return Some(actions[0].to_owned());
         }
 
         None
