@@ -1,22 +1,19 @@
-mod entity;
+mod constants;
+mod game_state;
 mod loader;
 mod solver;
 
-use entity::enums::Metric;
 use solver::Solver;
 
 fn main() {
     let game = loader::read_input();
 
-    eprintln!("Game: {:?}", game.board);
-
-    let mut solver = Solver::new(game, Metric::RemainingSum);
+    eprintln!("Game state loaded");
+    let mut solver = Solver::new(game, 0);
 
     if let Some(solution) = solver.solve() {
-        eprintln!("Solver: {:?}", solver.init_score);
-        eprintln!("Solution: {:?}", solution.score);
-
-        loader::write_output(solution.actions);
+        eprintln!("Solution found");
+        loader::write_output(solution);
     } else {
         eprintln!("No solution found.");
     }

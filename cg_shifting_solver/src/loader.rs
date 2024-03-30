@@ -1,7 +1,8 @@
 use std::io;
 
-use crate::entity::action::Action;
-use crate::entity::game_state::GameState;
+use crate::constants::{NUM_ACTIONS, NUM_COLS, NUM_ROWS};
+use crate::game_state::GameState;
+use crate::solver::Solution;
 
 macro_rules! parse_input {
     ($x:expr, $t:ident) => {
@@ -15,23 +16,31 @@ pub fn read_input() -> GameState {
     let inputs = input_line.split(' ').collect::<Vec<_>>();
     let width = parse_input!(inputs[0], usize);
     let height = parse_input!(inputs[1], usize);
+    let mut count_tile = 0;
 
-    let mut board: Vec<Vec<u16>> = Vec::new();
-    for _ in 0..height {
+    let mut board: [[i16; NUM_COLS]; NUM_ROWS] = [[0; NUM_COLS]; NUM_ROWS];
+
+    for i in 0..height {
         let mut inputs = String::new();
         io::stdin().read_line(&mut inputs).unwrap();
-        let row = inputs
+        for (j, value) in inputs
             .split_whitespace()
-            .map(|x| x.parse::<u16>().unwrap())
-            .collect::<Vec<u16>>();
-        board.push(row);
+            .map(|x| x.parse::<i16>().unwrap())
+            .enumerate()
+        {
+            count_tile += if value > 0 { 1 } else { 0 };
+            board[i][j] = value;
+        }
     }
 
-    GameState::new(width, height, board)
+    GameState::new(width, height, count_tile, board)
 }
 
-pub fn write_output(solution: Vec<Action>) {
-    solution.iter().for_each(|action| {
-        println!("{}", action.to_string());
-    });
+pub fn write_output(solution: Solution) {
+    for i in 0..solution.num_moves {
+        let (row, col, dir, op) = solution.actions[i as usize];
+        let dir_sign = ["U", "D", "L", "R"][dir as usize];
+        let op_sign = ["+", "-"][op as usize];
+        println!("{} {} {} {}", row, col, dir, op);
+    }
 }

@@ -1,31 +1,36 @@
-use crate::entity::action::Action;
-use crate::entity::enums::Metric;
-use crate::entity::game_state::GameState;
-use crate::entity::solution::Solution;
+use crate::constants::NUM_ACTIONS;
+use crate::game_state::GameState;
 use rand::seq::SliceRandom;
 use rand::Rng;
+
+pub struct Solution {
+    pub actions: [(u8, u8, u8, bool); NUM_ACTIONS],
+    pub score: i32,
+    pub num_moves: i32,
+}
 
 pub struct Solver {
     pub game: GameState,
     pub init_score: i32,
-    pub metric: Metric,
+    pub metric: u8,
     pub temperature: f64,
     pub cooling_rate: f64,
     pub num_steps: i32,
+    pub generator: rand::rngs::ThreadRng,
 }
 
 impl Solver {
-    pub fn new(game: GameState, metric: Metric) -> Solver {
+    pub fn new(game: GameState, metric: u8) -> Solver {
         let mut s = Solver {
-            init_score: game.score(&metric),
+            init_score: game.score(metric),
             game,
             metric,
             temperature: 1.0,
             num_steps: 200_000,
             cooling_rate: 1.0,
+            generator: rand::thread_rng(),
         };
         s.cooling_rate = (0.001_f64.log2() / s.num_steps as f64).exp2();
-        eprintln!("Cooling rate: {:?}", s.cooling_rate);
         s
     }
 
@@ -33,13 +38,14 @@ impl Solver {
         let mut solution = self.generate_random_solution();
 
         let mut loop_count = 0;
-
+        let mut start_time = std::time::Instant::now();
         loop {
             if loop_count > self.num_steps {
+                eprintln!("Time elapsed: {:?}", start_time.elapsed());
                 loop_count = 0;
                 solution = self.generate_random_solution();
                 self.temperature = 1.0;
-                self.metric = self.get_random_metric();
+                self.metric = self.generator.gen_range(0..3) as u8;
                 eprintln!("Restarting with new metric: {:?}", self.metric);
             }
 
@@ -70,127 +76,92 @@ impl Solver {
         } else if diff == 0.0 {
             0.5
         } else {
-            let p = (-diff / self.temperature).exp();
-
-            // eprintln!("p: {:?} - diff: {} - T: {}", p, diff, self.temperature);
-
-            p * 0.5
+            0.5_f64 * (-diff / self.temperature).exp()
         }
     }
 
     fn mutate(&mut self, base_solution: &Solution) -> Solution {
         let mut rng = rand::thread_rng();
-        let idx_mutated = rng.gen_range(0..base_solution.actions.len());
+        let idx_mutated = rng.gen_range(0..base_solution.num_moves) as usize;
+        let mut curr_idx: usize = 0;
 
-        let mut new_actions: Vec<Action> = Vec::new();
+        let mut new_actions: [(u8, u8, u8, bool); NUM_ACTIONS] =
+            [(100, 100, 100, false); NUM_ACTIONS];
         self.game.reset();
 
         // replay the game to the state of the base solution
         for i in 0..idx_mutated {
-            new_actions.push(base_solution.actions[i].clone());
-            self.game.apply_action(&base_solution.actions[i]).unwrap();
+            new_actions[curr_idx] = base_solution.actions[i];
+            self.game.apply_action(new_actions[curr_idx]);
+            curr_idx += 1;
         }
 
-        // alter the action
-        // let prev_action = base_solution.actions[idx_mutated];
-        // if let Some(altered_action) = self.alter_action(&prev_action) {
-        //     self.game.apply_action(&altered_action).unwrap();
-        //     new_actions.push(altered_action);
-        // }
-
         // replay the game to the end -- filter out invalid actions
-        for i in idx_mutated + 1..base_solution.actions.len() {
-            let action = base_solution.actions.get(i).unwrap();
+        for i in (idx_mutated + 1)..base_solution.num_moves as usize {
+            let (row, col, dir, _) = base_solution.actions[i];
 
-            if self
-                .game
-                .is_valid_action(action.row, action.col, &(action.direction))
-            {
-                self.game.apply_action(action).unwrap();
-                new_actions.push(action.clone());
+            if self.game.is_valid_action(row as usize, col as usize, dir) {
+                new_actions[curr_idx] = base_solution.actions[i];
+                self.game.apply_action(new_actions[curr_idx]);
+                curr_idx += 1;
             }
         }
 
         // add random actions to the end
         while let Some(action) = self.get_random_action() {
-            self.game.apply_action(&action).unwrap();
-            new_actions.push(action);
+            new_actions[curr_idx] = action;
+            self.game.apply_action(new_actions[curr_idx]);
+            curr_idx += 1;
         }
 
         Solution {
             actions: new_actions,
-            score: self.game.score(&self.metric),
+            score: self.game.score(self.metric),
+            num_moves: (curr_idx - 1) as i32,
         }
     }
 
     fn generate_random_solution(&mut self) -> Solution {
         self.game.reset();
-        let mut actions: Vec<Action> = Vec::new();
+        let mut actions: [(u8, u8, u8, bool); NUM_ACTIONS] = [(100, 100, 100, false); NUM_ACTIONS];
 
+        let mut idx = 0;
         while let Some(action) = self.get_random_action() {
-            self.game.apply_action(&action).unwrap();
-            actions.push(action);
+            self.game.apply_action(action);
+            actions[idx] = action;
+            idx += 1;
         }
 
-        Solution::new(actions, self.game.score(&self.metric))
+        Solution {
+            actions,
+            score: self.game.score(self.metric),
+            num_moves: (idx - 1) as i32,
+        }
     }
 
-    fn alter_action(&self, action: &Action) -> Option<Action> {
-        let mut rng = rand::thread_rng();
+    fn get_random_action(&mut self) -> Option<(u8, u8, u8, bool)> {
+        let mut tiles: Vec<(usize, usize)> = Vec::new();
 
-        let mut possible_actions = self.game.get_actions(action.row, action.col);
+        for (row, col, _) in self.game.init_state {
+            if row == 100 {
+                break;
+            }
+            if self.game.board[row][col] > 0 {
+                tiles.push((row, col));
+            }
+        }
 
-        if possible_actions.len() <= 1 {
+        if tiles.is_empty() {
             return None;
         }
 
-        possible_actions.shuffle(&mut rng);
+        tiles.shuffle(&mut self.generator);
 
-        for new_action in possible_actions.iter() {
-            if new_action == action {
-                continue;
+        for (row, col) in tiles {
+            if let Some(action) = self.game.get_random_action(row, col) {
+                return Some(action);
             }
-
-            return Some(new_action.clone());
         }
-
         None
-    }
-
-    fn get_random_action(&mut self) -> Option<Action> {
-        let mut rng = rand::thread_rng();
-
-        let mut pos = self.game.get_position_value();
-
-        if pos.is_empty() {
-            return None;
-        }
-
-        pos.shuffle(&mut rng);
-
-        for (row, col, _) in pos.iter() {
-            let mut actions = self.game.get_actions(*row, *col);
-
-            if actions.is_empty() {
-                continue;
-            }
-
-            actions.shuffle(&mut rng);
-
-            return Some(actions[0].to_owned());
-        }
-
-        None
-    }
-
-    fn get_random_metric(&self) -> Metric {
-        let mut rng = rand::thread_rng();
-        let index = rng.gen_range(0..3);
-        match index {
-            0 => Metric::RemainingSum,
-            1 => Metric::RemainingTiles,
-            2 => Metric::ColRowsUsed,
-            _ => unreachable!(), // This should never happen
-        }
     }
 }
