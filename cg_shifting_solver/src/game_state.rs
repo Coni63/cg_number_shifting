@@ -5,7 +5,7 @@ use crate::constants::{NUM_ACTIONS, NUM_COLS, NUM_ROWS};
 pub struct GameState {
     pub width: usize,
     pub height: usize,
-    pub board: [[i16; 30]; 20],
+    pub board: [[i16; NUM_COLS]; NUM_ROWS],
     pub init_state: [(usize, usize, i16); NUM_ACTIONS],
     pub count_tile: i32,
     pub generator: rand::rngs::ThreadRng,
@@ -149,7 +149,7 @@ impl GameState {
         let direction = valid_dir[self.generator.gen_range(0..valid_dir.len())];
         let sign = self.generator.gen_range(0..4);
 
-        Some((row as u8, col as u8, direction, sign > 0))
+        Some((row as u8, col as u8, direction, sign == 0)) // 3 chances out of 4 to be a subtraction
     }
 
     pub fn is_valid_action(&self, row: usize, col: usize, direction: u8) -> bool {

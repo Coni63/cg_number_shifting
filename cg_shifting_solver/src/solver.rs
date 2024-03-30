@@ -26,7 +26,7 @@ impl Solver {
             game,
             metric,
             temperature: 1.0,
-            num_steps: 200_000,
+            num_steps: 400_000,
             cooling_rate: 1.0,
             generator: rand::thread_rng(),
         };
@@ -41,12 +41,12 @@ impl Solver {
         let mut start_time = std::time::Instant::now();
         loop {
             if loop_count > self.num_steps {
-                eprintln!("Time elapsed: {:?}", start_time.elapsed());
+                // eprintln!("Time elapsed: {:?}", start_time.elapsed());
                 loop_count = 0;
                 solution = self.generate_random_solution();
                 self.temperature = 1.0;
                 self.metric = self.generator.gen_range(0..3) as u8;
-                eprintln!("Restarting with new metric: {:?}", self.metric);
+                // eprintln!("Restarting with new metric: {:?}", self.metric);
             }
 
             let mutated_solution = self.mutate(&solution);

@@ -3,7 +3,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm import DeclarativeBase
 
 # Define the SQLAlchemy engine
-engine = create_engine('sqlite:///results.db', echo=False)
+engine = create_engine("sqlite:///results.db", echo=False)
 
 
 class Base(DeclarativeBase):
@@ -11,7 +11,7 @@ class Base(DeclarativeBase):
 
 
 class Results(Base):
-    __tablename__ = 'results'
+    __tablename__ = "results"
     id = Column(Integer, primary_key=True)
     level_number = Column(Integer)
     level_input = Column(String)
@@ -30,7 +30,12 @@ def add_level(level_number, level_pass, level_input):
     with Session() as session:
         if _check_if_exist(level_number, session):
             return
-        new_level = Results(level_number=level_number, level_pass=level_pass, solved=False, level_input=level_input)
+        new_level = Results(
+            level_number=level_number,
+            level_pass=level_pass,
+            solved=False,
+            level_input=level_input,
+        )
         session.add(new_level)
         session.commit()
 
@@ -39,7 +44,9 @@ def set_solution(level_number, solution):
     with Session() as session:
         if _check_is_solved(level_number, session):
             return
-        level = session.query(Results).filter(Results.level_number == level_number).first()
+        level = (
+            session.query(Results).filter(Results.level_number == level_number).first()
+        )
         level.solution = solution
         level.solved = True
         session.commit()
@@ -55,6 +62,16 @@ def get_level_by_id(level_id) -> Results:
     with Session() as session:
         level = session.query(Results).filter(Results.id == level_id).first()
         return level
+
+
+def reset_level(level_number):
+    with Session() as session:
+        level = (
+            session.query(Results).filter(Results.level_number == level_number).first()
+        )
+        level.solved = False
+        level.solution = None
+        session.commit()
 
 
 def _check_if_exist(level_number, session) -> bool:

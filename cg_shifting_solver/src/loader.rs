@@ -37,10 +37,12 @@ pub fn read_input() -> GameState {
 }
 
 pub fn write_output(solution: Solution) {
-    for i in 0..solution.num_moves {
-        let (row, col, dir, op) = solution.actions[i as usize];
+    for (row, col, dir, op) in solution.actions {
+        if row == 100 {
+            break;
+        }
         let dir_sign = ["U", "D", "L", "R"][dir as usize];
-        let op_sign = ["+", "-"][op as usize];
-        println!("{} {} {} {}", row, col, dir_sign, op_sign);
+        let op_sign = if op { "+" } else { "-" };
+        println!("{} {} {} {}", col, row, dir_sign, op_sign);
     }
 }
