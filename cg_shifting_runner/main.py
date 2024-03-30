@@ -3,7 +3,13 @@ import subprocess
 import time
 
 import requests
-from database import Results, add_level, get_level_by_id, set_solution, get_first_unsolved
+from database import (
+    Results,
+    add_level,
+    get_level_by_id,
+    set_solution,
+    get_first_unsolved,
+)
 from dotenv import load_dotenv
 import os
 import bz2
@@ -41,7 +47,7 @@ def _get_api_handle():
 
 def _extract_puzzle(level: Results):
     """
-    Extract the puzzle from the database and write it to a file. 
+    Extract the puzzle from the database and write it to a file.
     Requires for the solver to read the puzzle from a file.
     """
     with open("../level.txt", "w") as f:
@@ -56,7 +62,7 @@ def extract_current_puzzle() -> tuple[str, int, bool]:
     if level is None:
         print("No more levels to solve.")
         return None, None
-    
+
     _extract_puzzle(level)
     return (level.level_pass, level.level_number, level.solved)
 
@@ -69,7 +75,7 @@ def extract_puzzle_by_id(level_id: int) -> str:
     if level is None:
         print(f"ID #{level_id} not found.")
         return None, None
-    
+
     _extract_puzzle(level)
     return (level.level_pass, level.level_number)
 
@@ -83,11 +89,8 @@ def solve_level() -> bool:
     exit_code = completed_process.returncode
     return exit_code == 0
 
+
 def solve_level_multi() -> bool:
-    import signal
-    import subprocess
-    import os
-    from pathlib import Path
     import shutil
     import psutil
 
@@ -110,8 +113,11 @@ def solve_level_multi() -> bool:
         input_file = tmp_dir / f"level_{i}.txt"
         output_file = tmp_dir / f"solution_{i}.txt"
         shutil.copyfile(cwd / "level.txt", input_file)
-        # print(f"{cwd / program_execute} < {input_file} > {output_file}")
-        proc = subprocess.Popen(f"{cwd / program_execute} < {input_file} > {output_file}", shell=True, cwd=cwd)
+        proc = subprocess.Popen(
+            f"{cwd / program_execute} < {input_file} > {output_file}",
+            shell=True,
+            cwd=cwd,
+        )
         processes.append(proc)
 
     finished = False
@@ -127,7 +133,7 @@ def solve_level_multi() -> bool:
                         print(f"Solution found by solver #{j} (PID: {proc2.pid})")
                         finished = True
                 break
-    
+
     solution_file = tmp_dir / f"solution_{solver_id}.txt"
     shutil.copyfile(solution_file, cwd / "solution.txt")
 
@@ -147,7 +153,7 @@ def submit_solution(handle: int, level_pass: str, solution: str) -> tuple[str, i
         json=[
             handle,
             {
-                "code": level_pass + '\n' + solution,
+                "code": level_pass + "\n" + solution,
                 "programmingLanguageId": "PHP",
                 "multipleLanguages": {"testIndex": 1},
             },
@@ -228,12 +234,12 @@ def main():
         worked = solve_level_multi()
         if not worked:
             break
-        
+
         print(f"Level {number_level} solved... Saving solution.")
         solution = _load_current_solution()
         set_solution(number_level, solution)
         level_pass, number_level = submit_solution(handle, level_pass, solution)
-        
+
         if level_pass is None:
             break
 
@@ -260,7 +266,10 @@ def main_offline():
     print(f"Solution: \n{solution}")
 
 
-def dry_run(a, b,):
+def dry_run(
+    a,
+    b,
+):
     """
     Benchmark the solver for levels a to b.
     There is an overhead due to subprocess.run() so the time taken is not accurate.
@@ -280,15 +289,11 @@ def setup_db():
     # """
     # Initialize the database with the first few levels.
     # """
-    add_level(1, "first_level", "8 5\n0 0 0 4 0 0 0 0\n0 0 0 0 0 0 0 0\n0 0 0 0 0 0 0 0\n0 0 0 0 0 0 0 0\n0 0 0 1 0 0 2 1")
-    set_solution(1, "7 4 L +\n3 0 D -\n6 4 L -")
-
-    add_level(2, "pmkhklcgypoivqgfzyyuvmtsywegacwu", '8 5\n0 0 0 0 0 0 0 0\n0 0 0 0 0 0 0 0\n0 0 0 0 2 0 0 0\n0 0 0 0 0 0 0 0\n11 0 0 0 6 0 0 7\n')
-    set_solution(2, "4 2 D -\n7 4 L -\n4 4 L -")
-
-    add_level(3, "vtiuddduknpfjutlzlxrkbavooshdkgt", "8 5\n0 3 0 0 0 0 0 0\n0 0 0 0 0 0 0 0\n0 3 0 0 0 0 0 0\n0 6 0 2 0 0 0 0\n0 2 0 0 0 0 0 0\n")
-
-
+    add_level(
+        1,
+        "first_level",
+        "8 5\n0 0 0 4 0 0 0 0\n0 0 0 0 0 0 0 0\n0 0 0 0 0 0 0 0\n0 0 0 0 0 0 0 0\n0 0 0 1 0 0 2 1",
+    )
 
 
 if __name__ == "__main__":
