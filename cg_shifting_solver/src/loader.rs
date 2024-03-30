@@ -41,6 +41,6 @@ pub fn write_output(solution: Solution) {
         let (row, col, dir, op) = solution.actions[i as usize];
         let dir_sign = ["U", "D", "L", "R"][dir as usize];
         let op_sign = ["+", "-"][op as usize];
-        println!("{} {} {} {}", row, col, dir, op);
+        println!("{} {} {} {}", row, col, dir_sign, op_sign);
     }
 }
