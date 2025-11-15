@@ -21,8 +21,10 @@ pub struct Solver {
 
 impl Solver {
     pub fn new(game: GameState, metric: u8) -> Solver {
+        let score = game.score();
+
         let mut s = Solver {
-            init_score: game.score(metric),
+            init_score: game.score().0,
             game,
             metric,
             temperature: 1.0,
@@ -100,7 +102,12 @@ impl Solver {
         for i in (idx_mutated + 1)..base_solution.num_moves as usize {
             let (row, col, dir, _) = base_solution.actions[i];
 
-            if self.game.is_valid_action(row as usize, col as usize, dir) {
+            let value = self.game.board[row as usize][col as usize] as usize;
+
+            if self
+                .game
+                .is_valid_direction(row as usize, col as usize, value, dir)
+            {
                 new_actions[curr_idx] = base_solution.actions[i];
                 self.game.apply_action(new_actions[curr_idx]);
                 curr_idx += 1;
@@ -116,7 +123,7 @@ impl Solver {
 
         Solution {
             actions: new_actions,
-            score: self.game.score(self.metric),
+            score: self.game.score().0,
             num_moves: (curr_idx - 1) as i32,
         }
     }
@@ -134,7 +141,7 @@ impl Solver {
 
         Solution {
             actions,
-            score: self.game.score(self.metric),
+            score: self.game.score().0,
             num_moves: (idx - 1) as i32,
         }
     }

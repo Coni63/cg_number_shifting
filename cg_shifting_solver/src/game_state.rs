@@ -115,7 +115,7 @@ impl GameState {
     }
 
     #[inline(always)]
-    fn is_valid_direction(&self, row: usize, col: usize, value: usize, direction: u8) -> bool {
+    pub fn is_valid_direction(&self, row: usize, col: usize, value: usize, direction: u8) -> bool {
         // check that the target cell is within bounds and non-empty
         match direction {
             0 => {

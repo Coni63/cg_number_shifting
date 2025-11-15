@@ -265,10 +265,10 @@ def setup_db():
 
 if __name__ == "__main__":
     # setup_db()
-    main()
+    # main()
     # main_multi()
     # main_offline()
-    # dry_run(1, 25)
+    dry_run(1, 25)
     # benchmark(1, 15)
     # reset_level(270)
     # reset_level(271)
