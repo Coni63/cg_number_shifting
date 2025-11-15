@@ -2,7 +2,7 @@ use std::io;
 
 use crate::constants::{NUM_ACTIONS, NUM_COLS, NUM_ROWS};
 use crate::game_state::GameState;
-use crate::solver::Solution;
+use crate::solver::Node;
 
 macro_rules! parse_input {
     ($x:expr, $t:ident) => {
@@ -36,8 +36,8 @@ pub fn read_input() -> GameState {
     GameState::new(width, height, count_tile, board)
 }
 
-pub fn write_output(solution: Solution) {
-    for (row, col, dir, op) in solution.actions {
+pub fn write_output(Node: Node) {
+    for (row, col, dir, op) in Node.actions {
         if row == 100 {
             break;
         }

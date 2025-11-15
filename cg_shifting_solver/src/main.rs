@@ -9,7 +9,7 @@ fn main() {
     let game = loader::read_input();
 
     eprintln!("Game state loaded");
-    let mut solver = Solver::new(game, 0);
+    let mut solver = Solver::new(game);
 
     if let Some(solution) = solver.solve() {
         eprintln!("Solution found");
