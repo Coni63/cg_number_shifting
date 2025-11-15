@@ -6,8 +6,8 @@ pub struct GameState {
     pub width: usize,
     pub height: usize,
     pub board: [[i16; NUM_COLS]; NUM_ROWS],
-    pub init_state: [(usize, usize, i16); NUM_ACTIONS],
-    pub count_tile: i32,
+    pub init_state: [(usize, usize, i16); NUM_ACTIONS], // simply store positions and values of tiles for fast reset
+    pub count_tile: i32,                                // count of non-empty tiles
     pub generator: rand::rngs::ThreadRng,
 }
 
@@ -26,7 +26,7 @@ impl GameState {
             init_state: [(100, 100, 100); NUM_ACTIONS],
             generator: rand::thread_rng(),
         };
-        game.set_position_value();
+        game.set_init_state();
         game
     }
 
@@ -43,7 +43,7 @@ impl GameState {
         }
     }
 
-    pub fn set_position_value(&mut self) {
+    fn set_init_state(&mut self) {
         let mut idx = 0;
         for (row, cells) in self.board.iter().enumerate() {
             for (col, &cell) in cells.iter().enumerate() {
@@ -75,93 +75,65 @@ impl GameState {
         };
     }
 
-    pub fn score(&self, metric: u8) -> i32 {
-        match metric {
-            0 => self.score_total_sum(),
-            1 => self.score_count_tiles(),
-            2 => self.score_col_rows_used(),
-            _ => i32::MAX,
-        }
-    }
+    pub fn score(&self) -> (i32, i32, i32) {
+        let mut remaining_tiles = 0;
+        let mut remaining_sum = 0;
 
-    fn score_total_sum(&self) -> i32 {
-        let mut score = 0;
-        for row in &self.board {
-            for &cell in row {
-                score += cell as i32;
+        let mut cols_used = 0u64;
+        let mut rows_used = 0u64;
+
+        for (row, col, _) in self.init_state.iter().take(self.count_tile as usize) {
+            if self.board[*row][*col] > 0 {
+                remaining_tiles += 1;
+                remaining_sum += self.board[*row][*col] as i32;
+                cols_used |= 1u64 << col;
+                rows_used |= 1u64 << row;
             }
         }
-        score
-    }
+        let used_rows_cols = (cols_used.count_ones() + rows_used.count_ones()) as i32;
 
-    fn score_count_tiles(&self) -> i32 {
-        let mut score: i32 = 0;
-        for row in &self.board {
-            for &cell in row {
-                if cell > 0 {
-                    score += 1;
-                }
-            }
-        }
-        score
-    }
-
-    fn score_col_rows_used(&self) -> i32 {
-        let mut col_used: [bool; NUM_COLS] = [false; NUM_COLS];
-        let mut rows_used: [bool; NUM_ROWS] = [false; NUM_ROWS];
-
-        for row in 0..self.height {
-            for col in 0..self.width {
-                if self.board[row][col] > 0 {
-                    col_used[col] = true;
-                    rows_used[row] = true;
-                }
-            }
-        }
-
-        self.count_true(&rows_used) + self.count_true(&col_used)
-    }
-
-    fn count_true(&self, arr: &[bool]) -> i32 {
-        let mut count = 0;
-        for &value in arr.iter() {
-            if value {
-                count += 1;
-            }
-        }
-        count
+        (remaining_tiles, remaining_sum, used_rows_cols)
     }
 
     pub fn get_random_action(&mut self, row: usize, col: usize) -> Option<(u8, u8, u8, bool)> {
-        let mut valid_dir: Vec<u8> = Vec::new();
-        for direction in 0..4_u8 {
-            if !self.is_valid_action(row, col, direction) {
-                continue;
-            }
-
-            valid_dir.push(direction);
-        }
-
-        if valid_dir.is_empty() {
+        let value = self.board[row][col] as usize;
+        if value == 0 || value >= self.width.max(self.height) {
             return None;
         }
 
-        let direction = valid_dir[self.generator.gen_range(0..valid_dir.len())];
-        let sign = self.generator.gen_range(0..4);
+        let mut direction = self.generator.gen_range(0..4);
 
-        Some((row as u8, col as u8, direction, sign == 0)) // 3 chances out of 4 to be a subtraction
+        for _ in 0..4 {
+            if self.is_valid_direction(row, col, value, direction) {
+                let sign = self.generator.gen_range(0..4) == 0;
+                return Some((row as u8, col as u8, direction, sign));
+            }
+            direction = (direction + 1) & 3; // change direction and try again
+        }
+
+        None
     }
 
-    pub fn is_valid_action(&self, row: usize, col: usize, direction: u8) -> bool {
-        let value = self.board[row][col] as usize;
-        if value == 0 {
-            return false;
-        }
+    #[inline(always)]
+    fn is_valid_direction(&self, row: usize, col: usize, value: usize, direction: u8) -> bool {
+        // check that the target cell is within bounds and non-empty
         match direction {
-            0 => row >= value && self.board[row - value][col] > 0,
-            1 => row + value < self.height && self.board[row + value][col] > 0,
-            2 => col >= value && self.board[row][col - value] > 0,
-            3 => col + value < self.width && self.board[row][col + value] > 0,
+            0 => {
+                row >= value
+                    && unsafe { *self.board.get_unchecked(row - value).get_unchecked(col) > 0 }
+            }
+            1 => {
+                row + value < self.height
+                    && unsafe { *self.board.get_unchecked(row + value).get_unchecked(col) > 0 }
+            }
+            2 => {
+                col >= value
+                    && unsafe { *self.board.get_unchecked(row).get_unchecked(col - value) > 0 }
+            }
+            3 => {
+                col + value < self.width
+                    && unsafe { *self.board.get_unchecked(row).get_unchecked(col + value) > 0 }
+            }
             _ => false,
         }
     }

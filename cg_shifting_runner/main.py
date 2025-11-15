@@ -93,61 +93,6 @@ def solve_level() -> bool:
     return exit_code == 0
 
 
-def solve_level_multi() -> bool:
-    import signal
-    import subprocess
-    import os
-    from pathlib import Path
-    import shutil
-    import psutil
-
-    def kill_process_tree(pid):
-        parent = psutil.Process(pid)
-        children = parent.children(recursive=True)
-        for child in children:
-            child.terminate()
-        parent.terminate()
-
-    cwd = Path.cwd().parent
-
-    tmp_dir = cwd / "tmp"
-    tmp_dir.mkdir(exist_ok=True)
-
-    processes = []
-    num_processes = 4
-
-    for i in range(num_processes):
-        input_file = tmp_dir / f"level_{i}.txt"
-        output_file = tmp_dir / f"solution_{i}.txt"
-        shutil.copyfile(cwd / "level.txt", input_file)
-        # print(f"{cwd / program_execute} < {input_file} > {output_file}")
-        proc = subprocess.Popen(
-            f"{cwd / program_execute} < {input_file} > {output_file}",
-            shell=True,
-            cwd=cwd,
-        )
-        processes.append(proc)
-
-    finished = False
-    solver_id = None
-    while not finished:
-        for i, proc in enumerate(processes):
-            if proc.poll() is not None:
-                print(f"Solution found by solver #{i} (PID: {proc.pid})")
-                solver_id = i
-                for j, proc2 in enumerate(processes):
-                    if j != i:
-                        kill_process_tree(proc2.pid)
-                        print(f"Solution found by solver #{j} (PID: {proc2.pid})")
-                        finished = True
-                break
-
-    solution_file = tmp_dir / f"solution_{solver_id}.txt"
-    shutil.copyfile(solution_file, cwd / "solution.txt")
-
-    return True
-
-
 def submit_solution(handle: int, level_pass: str, solution: str) -> tuple[str, int]:
     """
     Submit the solution to the Codingame API and return the next level pass and level data.
@@ -239,8 +184,7 @@ def main():
             break
 
         print(f"Restart at Level {number_level}")
-        # worked = solve_level()
-        worked = solve_level_multi()
+        worked = solve_level()
         if not worked:
             break
 
