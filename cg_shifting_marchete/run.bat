@@ -1,0 +1,1 @@
+python new_submit.py RN_ExploDiv_7 --threads 10 --reset-seconds 59 --lFa 3600 --K-A 60000 --K-B 0 --K-C 20000 --K-D 40000 --inc-time 0 --inc-lfa 0 --allow-best 999 --recomb 0

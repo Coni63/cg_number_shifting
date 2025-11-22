@@ -4,3 +4,7 @@ cg_shifting_solver/target
 *.db
 .env
 __pycache__/
+
+*.exe
+sols/
+lvls/
